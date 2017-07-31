@@ -42,10 +42,10 @@ javascript:
         console.log("I made it!");
     };
     options.logging = true;
-    options.rejectIdConflict = true;
+    options.rejectIdConflict = false;
 	
     marklet(options, codeToRun)
-	.then(function(){console.log("everything is dandy");})
+	.then(function(deleterFunction){console.log("everything is dandy ");  setTimeout(function(){deleterFunction()},5000);})
 	.catch(function(){console.log("second error handler");});
 
     /* don't edit below this line! */
@@ -68,6 +68,7 @@ javascript:
                     s.src=script;
                     s.id=id;
                     d.body.appendChild(s);
+					tagIds.push(id);
                     options.logging ? console.log("Added script: " + id) : null;
 					resolve();
                 }
@@ -91,6 +92,7 @@ javascript:
                     styles.type = "text/css";
                     styles.href = link;
                     document.getElementsByTagName("head")[0].appendChild(styles);
+					tagIds.push(id);
                     options.logging ? console.log("Added style: " + id) : null;
 					resolve();
                 }
@@ -154,13 +156,24 @@ javascript:
 		/* .all is here so that ensuing code won't run until all the tags have been added and tested */
 		return Promise.all([scriptPromise, stylePromise])
 		.then(function(){
-			options.logging ? console.log("All tags accounted for, on to the main code.") : null;                            
-            return runTestCode(options.codeRunCondition, true).then(function(){
+			options.logging ? console.log("All tags accounted for, on to the main code.") : null; 
+			
+			/* This function generates functions that will delete all the tags added. */
+			var deleter = (function(ids){
+				return function(){
+					ids.forEach(function(id){
+						el = document.getElementById(id);
+						el.parentNode.removeChild(el);
+					});
+				};
+			})(tagIds);
+			
+			return runTestCode(options.codeRunCondition, true).then(function(){
 				return new Promise(function(resolve, reject){
 						clearInterval(ticker);
 						options.logging ? console.log("Running main code.") : null;
-						codeToRun();
-						resolve();
+						codeToRun(deleter);
+						resolve(deleter);
 				});			
 			}, function(){
 				return new Promise(function(resolve, reject){
@@ -171,15 +184,17 @@ javascript:
 							clearInterval(timer);
 							clearInterval(ticker);
 							options.logging ? console.log("Running main code.") : null;
-							codeToRun();
+							codeToRun(deleter);
+							resolve(deleter);
 						}, function(){/* testCode failed, try again */});
 					}, options.tickLength);
 				});    
 			});
         }).catch(function(err){
-			clearInterval(ticker);
-            options.onError(err);
+			clearInterval(ticker);			
 			console.error(err);
+			deleter();
+            options.onError(err);			
 			return Promise.reject(err);
         });         
     }
