@@ -7,28 +7,34 @@ javascript:
     /* an array of urls and ids. Test code should be function that returns true
         if the script has loaded properly. */
     var options= {};
-    options.scriptsToAdd = 
-        {
+    options.scripts = 
+        [{
             url:"//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js",
             id:"jquery",
 			then:[
 				{
 					url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.js",
 					id:"jquery-alert",
-					testCode:function(){if (typeof $ !== 'undefined') return true;}
+					loadCondition:function(){if (typeof $ !== 'undefined') return true;}
 				},
 				{
-				url:"//cdnjs.cloudflare.com/ajax/libs/Sortable/1.6.0/Sortable.min.js",
-				id:"sortable"            
+					url:"//cdnjs.cloudflare.com/ajax/libs/Sortable/1.6.0/Sortable.min.js",
+					id:"sortable",
+					skipCondition:function(){return true;}
 				}				
-			],
-			
-		};
+			],			
+		}];
     
     /* an array of styles to add */
-    options.stylesToAdd = {
+    options.styles = {
             url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.css",
-            id:"alert-style"
+            id:"alert-style",
+			then:[
+				{
+					url:"//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+					id:"bootstrap",
+				}
+			]
         };
 
     
@@ -51,6 +57,7 @@ javascript:
 				console.log("Finished deleter");
 			}); 
 		},5000);
+		setTimeout(function(){console.clear();}, 30000)
 	})
 	.catch(function(){console.log("second error handler");});
 
@@ -64,8 +71,8 @@ javascript:
 		if (typeof options.onError !== 'function') options.onError = function(){};
 		
 		
-		if (!Array.isArray(options.scriptsToAdd)) options.scriptsToAdd = [options.scriptsToAdd];
-		if (!Array.isArray(options.stylesToAdd)) options.stylesToAdd = [options.stylesToAdd];
+		/* if (!Array.isArray(options.scriptsToAdd)) options.scriptsToAdd = [options.scriptsToAdd];
+		if (!Array.isArray(options.stylesToAdd)) options.stylesToAdd = [options.stylesToAdd]; */
 		
         var tagNumber = 1;
         
@@ -210,13 +217,20 @@ javascript:
 		}, options.tickLength);
 			
 		/* Create a promise that is a .all of all the script-loading promises */
-		var scriptPromise = crawl(options.scriptsToAdd, function(script){
+		var scriptPromise = crawl(options.scripts, function(script){
 			
 			/* Validate script options here */
 			if (!(script.required === false)) script.required = true;
 			
+			if (typeof script.skipCondition == 'function') {
+				if (runTestCode(script.skipCondition, false)){
+					options.logging ? console.log("Skip condition met, skipping " + script.id) : null;
+					return Promise.resolve();
+				}
+			}
+			
 			/* For each script to load, test the condition. */
-			if (runTestCode(script.testCode, false)){
+			if (runTestCode(script.loadCondition, false)){
 				/* If it returns true, add the script, which returns a promise */
 				return addScript(script.url, script.id, script.required);
 			}
@@ -228,8 +242,8 @@ javascript:
 					var timerRunning = true;
 					
 					var timer = setInterval(function(){						
-						if (runTestCode(script.testCode, false)){
-							options.logging ? console.log("Success with " + script.testCode) : null;
+						if (runTestCode(script.loadCondition, false)){
+							options.logging ? console.log("Success with " + script.loadCondition) : null;
 							timerRunning = false;
 							addScript(script.url, script.id).then(function(){
 								resolve()
@@ -243,7 +257,7 @@ javascript:
 					
 					var timeout = setTimeout(function(){
 						if (timerRunning) {
-							options.logging ? console.log("Timeout with " + script.testCode) : null;
+							options.logging ? console.log("Timeout with " + script.loadCondition) : null;
 							reject("Timeout");
 							clearInterval(timer);
 							
@@ -254,11 +268,18 @@ javascript:
 		});
 			
 		/* Create a promise that is a .all of all the style-loading promises */
-		var stylePromise = crawl(options.stylesToAdd, function(style){
+		var stylePromise = crawl(options.styles, function(style){
 			if (!(style.required === false)) style.required = true;
 			
+			if (typeof style.skipCondition == 'function') {
+				if (runTestCode(style.skipCondition, false)){
+					options.logging ? console.log("Skip condition met, skipping " + style.id) : null;
+					return Promise.resolve();
+				}
+			}
+			
 			/* No conditions to test for, just return the promise once the style is added */
-			return addStyle(style.url, style.id);
+			return addStyle(style.url, style.id, style.required);
 		});
 			
 		/* .all is here so that ensuing code won't run until all the tags have been added and tested */
@@ -287,7 +308,7 @@ javascript:
 				return new Promise(function(resolve, reject){
 						clearInterval(ticker);
 						options.logging ? console.log("Running main code.") : null;
-						codeToRun(deleter);
+						if (typeof codeToRun == 'function') codeToRun(deleter);
 						resolve(deleter);
 				});			
 			}, function(){
@@ -301,7 +322,7 @@ javascript:
 							clearInterval(timer);
 							clearInterval(ticker);
 							options.logging ? console.log("Running main code.") : null;
-							codeToRun(deleter);
+							if (typeof codeToRun == 'function') codeToRun(deleter);
 							resolve(deleter);
 						}, function(){/* testCode failed, try again */});
 					}, options.tickLength);
