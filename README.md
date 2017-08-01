@@ -1,15 +1,15 @@
 # Marklet
----
+
 Helper framework for bookmarklets that load external scripts and/or stylesheets. Loading external scripts that depend on each other can be tricky if the scripts must
 execute in a specific order. A good example of this (which motivated me to create this tool) would be trying to use jQuery and jQuery plugins, as jQuery must be
 loaded before the plugins. Marklet can help.
 
 ## Installation
----
+
 On NPM soon. 
 
 ## Usage
----
+
 Wrap your bookmarklet code into the `marklet` function, using either a callback or a promise. 
 
 ```javascript
