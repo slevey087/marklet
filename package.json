@@ -1,0 +1,29 @@
+{
+  "name": "marklet",
+  "version": "0.0.1",
+  "description": "Framework for loading dependent external scripts into bookmarklets.",
+  "main": "marklet.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slevey087/marklet.git"
+  },
+  "keywords": [
+    "Bookmarklet",
+    "Javascript",
+    "Dependencies",
+    "Script",
+    "Tag",
+    "Style",
+    "Tag",
+    "Stylesheet"
+  ],
+  "author": "Sam Levey",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/slevey087/marklet/issues"
+  },
+  "homepage": "https://github.com/slevey087/marklet#readme"
+}

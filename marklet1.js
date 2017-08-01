@@ -22,7 +22,7 @@ javascript:
 				id:"sortable"            
 				}				
 			],
-			fallback:
+			
 		};
     
     /* an array of styles to add */
@@ -33,7 +33,7 @@ javascript:
 
     
     /* condition to verify before running main code */
-    options.codeRunCondition = function(){if (typeof $.alert !== 'undefined') return true};
+    /* options.codeRunCondition = function(){if (typeof $.alert !== 'undefined') return true}; */
     
     /* the main code to run once the tags are added */
     var codeToRun = function()  {
@@ -67,28 +67,23 @@ javascript:
 		if (!Array.isArray(options.scriptsToAdd)) options.scriptsToAdd = [options.scriptsToAdd];
 		if (!Array.isArray(options.stylesToAdd)) options.stylesToAdd = [options.stylesToAdd];
 		
-		options.scriptsToAdd = options.scriptsToAdd.map((item) => {			
-			(typeof item.testCode !== 'function') ? item.testCode = function(){return true;} : null;
-			return item;
-		});
-		
         var tagNumber = 1;
         
 		
 		function crawl(object, promiseFunction){
 			if (!Array.isArray(object)){
 				return promiseFunction(object).then(function(){
-					if (object.hasOwnProperty("then")) crawl(object.then, promiseFunction);				
+					if (object.hasOwnProperty("then")) return crawl(object.then, promiseFunction);				
 				});				
 			}
 			else {
 				return Promise.all(object.map(function(item){
-					crawl(item, promiseFunction);
+					return crawl(item, promiseFunction);
 				}));								
 			}			
 		}
 		
-        function addScript(script,id){
+        function addScript(script,id, required){
             return new Promise(function(resolve, reject){
                 if (!id) {
                     id = "marklet" + tagNumber.toString();
@@ -99,41 +94,79 @@ javascript:
                     var s=d.createElement("script");
                     s.src=script;
                     s.id=id;
-                    d.body.appendChild(s);					
+                    options.logging ? console.log("Fetching script: " + id) : null;	
+					d.body.appendChild(s);
+					var timer = setTimeout(function(){
+						options.logging ? console.log("Timeout on script: " + id) : null;
+						if (required) reject("Required script " + id + " encountered an error. Marklet aborted.");
+						else {
+							options.logging ? console.log("Error with non-essential script: " + id + ". Continuing.") : null;
+							resolve();
+						}
+					}, options.timeout);
 					s.addEventListener("load", function(){
 						options.logging ? console.log("Success with script: " + id) : null;
+						clearTimeout(timer);
 						resolve();
 					});
-					tagIds.push(id);
-                    options.logging ? console.log("Fetching script: " + id) : null;					
+					s.addEventListener("error", function(err){
+						options.logging ? console.log("Error with script: " + id + ". Err: "+ err) : null;
+						clearTimeout(timer);
+						if (required) reject("Required script " + id + " encountered an error. Marklet aborted.");
+						else {
+							options.logging ? console.log("Error with non-essential script: " + id + ". Continuing.") : null;
+							resolve();
+						}
+					});
+					tagIds.push(id);                    				
                 }
 				else {
 					options.logging ? console.log(id + " tag already present") : null;
 					if (options.rejectIdConflict) reject(id + " ID conflict rejected. Marklet aborted.");
 					else resolve();
 				}
+				
             });
         }
 		
-        function addStyle (link,id){
+        function addStyle (link,id, required){
             return new Promise(function(resolve, reject){
                 if (!id) {
                     id = "marklet" + tagNumber.toString();
                     tagNumber++;
                 }
                 if (!document.getElementById(id)){
-                    var styles = document.createElement("link");
-                    styles.id = id;
-                    styles.rel = "stylesheet";
-                    styles.type = "text/css";
-                    styles.href = link;
-                    document.getElementsByTagName("head")[0].appendChild(styles);
-					styles.addEventListener("load", function(){
+                    var style = document.createElement("link");
+                    style.id = id;
+                    style.rel = "stylesheet";
+                    style.type = "text/css";
+                    style.href = link;
+					options.logging ? console.log("Fetching style: " + id) : null;
+                    document.getElementsByTagName("head")[0].appendChild(style);
+					var timer = setTimeout(function(){
+						options.logging ? console.log("Timeout on style: " + id) : null;
+						if (required) reject("Required style " + id + " encountered an error. Marklet aborted.");
+						else {
+							options.logging ? console.log("Error with non-essential style: " + id + ". Continuing.") : null;
+							resolve();
+						}
+					}, options.timeout);
+					style.addEventListener("load", function(){
 						options.logging ? console.log("Success with style: " + id) : null;
+						clearTimeout(timer);
 						resolve();
 					});
+					style.addEventListener("error", function(err){
+						options.logging ? console.log("Error with style: " + id + ". Err: "+ err) : null;
+						clearTimeout(timer);
+						if (required) reject("Required style " + id + " encountered an error. Marklet aborted.");
+						else {
+							options.logging ? console.log("Error with non-essential style: " + id + ". Continuing.") : null;
+							resolve();
+						}
+					});
 					tagIds.push(id);
-                    options.logging ? console.log("Fetching style: " + id) : null;
+                    
 					
                 }
 				else {
@@ -141,18 +174,31 @@ javascript:
 					if (options.rejectIdConflict) reject(id + " ID conflict rejected. Marklet aborted.");
 					else resolve();
 				}
+				
             });
         }
 		
         function runTestCode(testCode, usePromise){
+			if (typeof testCode !== 'function') {
+				options.logging ? console.log("No condition given.") : null;
+				if (usePromise) return Promise.resolve();
+				else return true;
+			}
+			
             options.logging ? console.log("Testing code " + testCode) : null;			
             if (usePromise) {
-				return new Promise(function(resolve, reject){
-					if (testCode()) resolve();
+				return new Promise(function(resolve, reject){					
+					if (testCode()) {
+						options.logging ? console.log("Success with " + testCode) : null;
+						resolve();
+					}
 					else reject();
 				});
 			}
-			else if (testCode()) return true;
+			else if (testCode()) {
+				options.logging ? console.log("Success with " + testCode) : null;
+				return true;
+			}
         }
         
         var tagIds = [];				
@@ -164,12 +210,15 @@ javascript:
 		}, options.tickLength);
 			
 		/* Create a promise that is a .all of all the script-loading promises */
-		var scriptPromise = Promise.all(options.scriptsToAdd.map(function(script){
+		var scriptPromise = crawl(options.scriptsToAdd, function(script){
+			
+			/* Validate script options here */
+			if (!(script.required === false)) script.required = true;
+			
 			/* For each script to load, test the condition. */
 			if (runTestCode(script.testCode, false)){
 				/* If it returns true, add the script, which returns a promise */
-				options.logging ? console.log("Success with " + script.testCode) : null;
-				return addScript(script.url, script.id);
+				return addScript(script.url, script.id, script.required);
 			}
 			else {
 				
@@ -202,13 +251,15 @@ javascript:
 					}, options.timeout);
 				});    
 			}
-		}));
+		});
 			
 		/* Create a promise that is a .all of all the style-loading promises */
-		var stylePromise = Promise.all(options.stylesToAdd.map(function(style){
+		var stylePromise = crawl(options.stylesToAdd, function(style){
+			if (!(style.required === false)) style.required = true;
+			
 			/* No conditions to test for, just return the promise once the style is added */
 			return addStyle(style.url, style.id);
-		}));
+		});
 			
 		/* .all is here so that ensuing code won't run until all the tags have been added and tested */
 		return Promise.all([scriptPromise, stylePromise])
@@ -223,7 +274,7 @@ javascript:
 							var el = document.getElementById(id);
 							el.parentNode.removeChild(el);							
 						});
-						options.logging ? console.log("Deleted Marklet Elements.") : null;
+						logging ? console.log("Deleted Marklet Elements.") : null;
 						if (typeof callback == 'function') callback();
 						resolve();
 					});
@@ -259,8 +310,15 @@ javascript:
         }).catch(function(err){
 			/* If There was some kind of attaching the scripts, run the callback, deleter, and re-broadcast the failed promise */
 			clearInterval(ticker);			
-			console.error(err);
-			deleter();
+			console.error(err);						
+			
+			/* short version of the deleter function, to remove tags just added */
+			tagIds.forEach(function(id){
+				var el = document.getElementById(id);
+				el.parentNode.removeChild(el);							
+			});
+			options.logging ? console.log("Deleted Marklet Elements.") : null;
+			
             options.onError(err);			
 			return Promise.reject(err);
         });         
