@@ -7,33 +7,53 @@ javascript:
     /* an array of urls and ids. Test code should be function that returns true
         if the script has loaded properly. */
     var options= {};
-    options.scriptsToAdd = 
-        {
-            url:"//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js",
-            id:"jquery",
+    options.scripts = 
+        [{
+            url:"//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquer.min.js",
+			backupUrl:"https://code.jquery.com/jquery-3.2.1.min.js",
+            id:"jquery",						
 			then:[
 				{
 					url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.js",
 					id:"jquery-alert",
-					testCode:function(){if (typeof $ !== 'undefined') return true;}
+					loadCondition:function(){if (typeof $ !== 'undefined') return true;}
 				},
 				{
-				url:"//cdnjs.cloudflare.com/ajax/libs/Sortable/1.6.0/Sortable.min.js",
-				id:"sortable"            
+					url:"//cdnjs.cloudflare.com/ajax/libs/Sortable/1.6.0/Sortable.min.js",
+					id:"sortable"					
 				}				
 			],
-			fallback:
-		};
+			catch: {
+				url:"https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js",
+				id:"angular",				
+				then:{
+					url:"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.6.0/Chart.js",
+					id:"chartJS",
+					then:{
+						url:"https://cdnjs.cloudflare.com/ajax/libs/angular-chart.js/1.1.1/angular-chart.js",
+						id:"angularChart"
+					}
+				}
+			}
+		}];
     
     /* an array of styles to add */
-    options.stylesToAdd = {
+    options.styles = {
             url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.css",
-            id:"alert-style"
+            id:"alert-style",
+			required:false,
+			then:[
+				{
+					url:"//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+					id:"bootstrap",
+				}
+			]
         };
-
+	
+	options.localStyle = "div:min-height:100px;";
     
     /* condition to verify before running main code */
-    options.codeRunCondition = function(){if (typeof $.alert !== 'undefined') return true};
+    /* options.codeRunCondition = function(){if (typeof $.alert !== 'undefined') return true}; */
     
     /* the main code to run once the tags are added */
     var codeToRun = function()  {
@@ -50,7 +70,8 @@ javascript:
 			.then(function(){
 				console.log("Finished deleter");
 			}); 
-		},5000);
+		},25000);
+		setTimeout(function(){console.clear();}, 30000)
 	})
 	.catch(function(){console.log("second error handler");});
 
@@ -58,32 +79,66 @@ javascript:
     function marklet(options, codeToRun) {
         "use strict";
 		
+		function log(string){
+			options.logging ? console.log(string) : null;
+		}
+		
 		options.timeout = options.timeout || 10000;		
-		options.abortOnTimeout === false ? null : options.abortOnTimeout = true;
 		options.tickLength = options.tickLength || 100;
 		if (typeof options.onError !== 'function') options.onError = function(){};
+		options.localStyleId = options.localStyleId || "markletLocalCss";
 		
 		
-		if (!Array.isArray(options.scriptsToAdd)) options.scriptsToAdd = [options.scriptsToAdd];
-		if (!Array.isArray(options.stylesToAdd)) options.stylesToAdd = [options.stylesToAdd];
-		
-		options.scriptsToAdd = options.scriptsToAdd.map((item) => {			
-			(typeof item.testCode !== 'function') ? item.testCode = function(){return true;} : null;
-			return item;
-		});
+		/* if (!Array.isArray(options.scriptsToAdd)) options.scriptsToAdd = [options.scriptsToAdd];
+		if (!Array.isArray(options.stylesToAdd)) options.stylesToAdd = [options.stylesToAdd]; */
 		
         var tagNumber = 1;
         
 		
 		function crawl(object, promiseFunction){
+			/* Jump into entry if it's not an array */
 			if (!Array.isArray(object)){
+				
+				/* If the skip conditon is true, then skip the whole branch */
+				if (typeof object.skipCondition == 'function') {
+					if (runTestCode(object.skipCondition, false)){
+						log("Skip condition met, skipping " + object.id);
+						return Promise.resolve();
+					}
+				}
+				
+				/* Run the function, then recurse */
 				return promiseFunction(object).then(function(){
-					if (object.hasOwnProperty("then")) crawl(object.then, promiseFunction);				
-				});				
+					if (object.hasOwnProperty("then")) return crawl(object.then, promiseFunction);
+				}, function(err){
+					/* We're here if the function failed. Try the alternate tree. */
+					if (object.hasOwnProperty("catch")){
+						log("Error with include: " + object.id + ". Attempting alternate branch.");
+						return crawl(object.catch, promiseFunction).catch(function(err){
+							/* If we're here, it's because the alternate tree failed too */
+							if (object.required) return Promise.reject(err);
+							else {
+								log("Error with non-essential include: " + object.id + " and its alternates. Continuing.");
+								return Promise.resolve();
+							}
+						});
+					}
+					/* No alternate tree but object is required */
+					else if (object.required){
+						return Promise.reject("Required include " + object.id + " encountered an error. Marklet aborted.");						
+					}
+					/* No alternate tree and object not required */
+					else {
+						log("Error with non-essential include: " + object.id + ". Continuing.");
+						return Promise.resolve();
+					}
+				});	
 			}
+			/* If it is an array, Promise.all and recurse */
 			else {
+				
 				return Promise.all(object.map(function(item){
-					crawl(item, promiseFunction);
+					return crawl(item, promiseFunction);
 				}));								
 			}			
 		}
@@ -99,19 +154,35 @@ javascript:
                     var s=d.createElement("script");
                     s.src=script;
                     s.id=id;
-                    d.body.appendChild(s);					
+                    log("Fetching script: " + id);
+					d.body.appendChild(s);
+					var timer = setTimeout(function(){
+						log("Timeout on script: " + id);
+						s.parentNode.removeChild(s);
+						reject();
+						
+					}, options.timeout);
 					s.addEventListener("load", function(){
-						options.logging ? console.log("Success with script: " + id) : null;
+						log("Success with script: " + id);
+						clearTimeout(timer);
+						tagIds.push(id);
 						resolve();
 					});
-					tagIds.push(id);
-                    options.logging ? console.log("Fetching script: " + id) : null;					
+					s.addEventListener("error", function(err){
+						log("Error with script: " + id + ". Err: ");
+						log(err);
+						clearTimeout(timer);
+						s.parentNode.removeChild(s);
+						reject();
+					});
+					
                 }
 				else {
-					options.logging ? console.log(id + " tag already present") : null;
+					log(id + " tag already present");
 					if (options.rejectIdConflict) reject(id + " ID conflict rejected. Marklet aborted.");
 					else resolve();
 				}
+				
             });
         }
 		
@@ -122,37 +193,66 @@ javascript:
                     tagNumber++;
                 }
                 if (!document.getElementById(id)){
-                    var styles = document.createElement("link");
-                    styles.id = id;
-                    styles.rel = "stylesheet";
-                    styles.type = "text/css";
-                    styles.href = link;
-                    document.getElementsByTagName("head")[0].appendChild(styles);
-					styles.addEventListener("load", function(){
-						options.logging ? console.log("Success with style: " + id) : null;
+                    var style = document.createElement("link");
+                    style.id = id;
+                    style.rel = "stylesheet";
+                    style.type = "text/css";
+                    style.href = link;
+					log("Fetching style: " + id);
+                    document.getElementsByTagName("head")[0].appendChild(style);
+					var timer = setTimeout(function(){
+						log("Timeout on style: " + id);
+						style.parentNode.removeChild(style);
+						reject();
+					}, options.timeout);
+					
+					style.addEventListener("load", function(){
+						log("Success with style: " + id);
+						clearTimeout(timer);
+						tagIds.push(id);
 						resolve();
 					});
-					tagIds.push(id);
-                    options.logging ? console.log("Fetching style: " + id) : null;
+					
+					style.addEventListener("error", function(err){
+						log("Error with style: " + id + ". Err: "+ err);
+						clearTimeout(timer);
+						style.parentNode.removeChild(style);
+						reject();
+					});
+					
+                    
 					
                 }
 				else {
-					options.logging ? console.log(id + " tag already present") : null;
+					log(id + " tag already present");
 					if (options.rejectIdConflict) reject(id + " ID conflict rejected. Marklet aborted.");
 					else resolve();
 				}
+				
             });
         }
 		
         function runTestCode(testCode, usePromise){
-            options.logging ? console.log("Testing code " + testCode) : null;			
+			if (typeof testCode !== 'function') {
+				log("No condition given.");
+				if (usePromise) return Promise.resolve();
+				else return true;
+			}
+			
+            log("Testing code " + testCode);
             if (usePromise) {
-				return new Promise(function(resolve, reject){
-					if (testCode()) resolve();
+				return new Promise(function(resolve, reject){					
+					if (testCode()) {
+						log("Success with " + testCode);
+						resolve();
+					}
 					else reject();
 				});
 			}
-			else if (testCode()) return true;
+			else if (testCode()) {
+				log("Success with " + testCode);
+				return true;
+			}
         }
         
         var tagIds = [];				
@@ -160,27 +260,37 @@ javascript:
 		
 		/* Here's where the action starts! Start the clock */
 		var ticker = setInterval(function(){
-			options.logging ? console.log("Tick") : null;
+			log("Tick");
 		}, options.tickLength);
 			
 		/* Create a promise that is a .all of all the script-loading promises */
-		var scriptPromise = Promise.all(options.scriptsToAdd.map(function(script){
+		var scriptPromise = crawl(options.scripts, function(script){
+			
+			/* Validate script options here */
+			if (!(script.required === false)) script.required = true;
+			
 			/* For each script to load, test the condition. */
-			if (runTestCode(script.testCode, false)){
+			if (runTestCode(script.loadCondition, false)){
 				/* If it returns true, add the script, which returns a promise */
-				options.logging ? console.log("Success with " + script.testCode) : null;
-				return addScript(script.url, script.id);
+				return addScript(script.url, script.id).catch(function(err){
+					/* If main link fails, try the backup link. */
+					if (script.backupUrl) {
+						log("Main URL failed, attempting backup URL for " + script.id);
+						return addScript(script.backupUrl, script.id);
+					}
+					else return Promise.reject(err);
+				});
 			}
 			else {
 				
 				/* If the condition fails, set the timer to try in one tick */
-				options.logging ? console.log("Condition failed. Will retry in one tick.") : null;
+				log("Condition failed. Will retry in one tick.");
 				return new Promise(function(resolve, reject){					
 					var timerRunning = true;
 					
 					var timer = setInterval(function(){						
-						if (runTestCode(script.testCode, false)){
-							options.logging ? console.log("Success with " + script.testCode) : null;
+						if (runTestCode(script.loadCondition, false)){
+							log("Success with " + script.loadCondition);
 							timerRunning = false;
 							addScript(script.url, script.id).then(function(){
 								resolve()
@@ -194,7 +304,63 @@ javascript:
 					
 					var timeout = setTimeout(function(){
 						if (timerRunning) {
-							options.logging ? console.log("Timeout with " + script.testCode) : null;
+							log("Timeout with " + script.loadCondition);
+							reject("Timeout");
+							clearInterval(timer);
+							
+						}
+					}, options.timeout);
+				}); 
+			}
+		});
+			
+		/* Create a promise that is a .all of all the style-loading promises */
+		var stylePromise = crawl(options.styles, function(style){
+			if (!(style.required === false)) style.required = true;
+			
+			if (typeof style.skipCondition == 'function') {
+				if (runTestCode(style.skipCondition, false)){
+					log("Skip condition met, skipping " + style.id);
+					return Promise.resolve();
+				}
+			}
+			
+			/* For each script to load, test the condition. */
+			if (runTestCode(style.loadCondition, false)){
+			
+				/* No conditions to test for, just return the promise once the style is added */
+				return addStyle(style.url, style.id).catch(function(){
+					/* If main url fails, try backup */
+					if (style.backupUrl) {
+						log("Main URL failed, attempting backup URL for " + style.id);
+						return addStyle(style.backupUrl, style.id);
+					}
+					else return Promise.reject(err);
+				});
+			}
+			else {					
+				/* If the condition fails, set the timer to try in one tick */
+				log("Condition failed. Will retry in one tick.");
+				return new Promise(function(resolve, reject){					
+					var timerRunning = true;
+					
+					var timer = setInterval(function(){						
+						if (runTestCode(style.loadCondition, false)){
+							log("Success with " + style.loadCondition);
+							timerRunning = false;
+							addScript(style.url, style.id).then(function(){
+								resolve()
+							}, function(err){
+								reject(err);
+							});							
+							clearInterval(timer);
+						}
+					}, options.tickLength);
+					
+					
+					var timeout = setTimeout(function(){
+						if (timerRunning) {
+							log("Timeout with " + style.loadCondition);
 							reject("Timeout");
 							clearInterval(timer);
 							
@@ -202,18 +368,30 @@ javascript:
 					}, options.timeout);
 				});    
 			}
-		}));
+		});
 			
-		/* Create a promise that is a .all of all the style-loading promises */
-		var stylePromise = Promise.all(options.stylesToAdd.map(function(style){
-			/* No conditions to test for, just return the promise once the style is added */
-			return addStyle(style.url, style.id);
-		}));
+		/* Meanwhile, add local css rules */
+		if (options.localStyle) {
+			var css = document.createElement('style');
+			css.type = 'text/css';
+			css.id = options.localStyleId;
+			
+			/* To make sure this tag gets deleted in the deleter */
+			tagIds.push(options.localStyleId);
+
+			var styles = options.localStyle;
+
+			if (css.styleSheet) css.styleSheet.cssText = styles;
+			else css.appendChild(document.createTextNode(styles));
+
+			log("Adding local style");
+			document.getElementsByTagName("head")[0].appendChild(css);
+		}
 			
 		/* .all is here so that ensuing code won't run until all the tags have been added and tested */
 		return Promise.all([scriptPromise, stylePromise])
 		.then(function(){
-			options.logging ? console.log("All tags accounted for, on to the main code.") : null; 
+			log("All tags accounted for, on to the main code."); 
 			
 			/* This function generates a function that will delete all the tags added. */
 			var deleter = (function(ids, logging){
@@ -223,7 +401,7 @@ javascript:
 							var el = document.getElementById(id);
 							el.parentNode.removeChild(el);							
 						});
-						options.logging ? console.log("Deleted Marklet Elements.") : null;
+						logging ? console.log("Deleted Marklet Elements.") : null;
 						if (typeof callback == 'function') callback();
 						resolve();
 					});
@@ -235,22 +413,22 @@ javascript:
 				/* If all goes well, stop ticker and run code (returning the deleter). */
 				return new Promise(function(resolve, reject){
 						clearInterval(ticker);
-						options.logging ? console.log("Running main code.") : null;
-						codeToRun(deleter);
+						log("Running main code.");
+						if (typeof codeToRun == 'function') codeToRun(deleter);
 						resolve(deleter);
 				});			
 			}, function(){
 				/* If code condition not met, try again in one tick */
 				return new Promise(function(resolve, reject){
-					options.logging ? console.log("Condition failed. Will retry in one tick.") : null;
+					log("Condition failed. Will retry in one tick.");
 					var timer = setInterval(function(){                    
 						runTestCode(options.codeRunCondition, true).then(function(){
 							/* When condition passes, clear ticker and run main code (returning the deleter) */
-							options.logging ? console.log("Success with " + options.codeRunCondition) : null;                       
+							log("Success with " + options.codeRunCondition);
 							clearInterval(timer);
 							clearInterval(ticker);
-							options.logging ? console.log("Running main code.") : null;
-							codeToRun(deleter);
+							log("Running main code.");
+							if (typeof codeToRun == 'function') codeToRun(deleter);
 							resolve(deleter);
 						}, function(){/* testCode failed, try again */});
 					}, options.tickLength);
@@ -259,10 +437,17 @@ javascript:
         }).catch(function(err){
 			/* If There was some kind of attaching the scripts, run the callback, deleter, and re-broadcast the failed promise */
 			clearInterval(ticker);			
-			console.error(err);
-			deleter();
+			console.error(err);						
+			
+			/* short version of the deleter function, to remove tags just added */
+			tagIds.forEach(function(id){
+				var el = document.getElementById(id);
+				el.parentNode.removeChild(el);							
+			});
+			log("Deleted Marklet Elements.");
+			
             options.onError(err);			
 			return Promise.reject(err);
-        });         
+        });      
     }
     
