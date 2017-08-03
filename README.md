@@ -220,9 +220,9 @@ options.codeRunCondition = function(){
 };
 ```
 
-## Callbacks
+## Events
 
-Marklet provides both global and include-level callbacks.
+Marklet provides both global and include-level events.
 
 ### onLoad
 
@@ -276,7 +276,13 @@ options.onError = function(err){
 };
 ```
 
+## Local Style
 
+In addition to fetching stylesheets using a URL, Marklet allows you to add CSS text directly. Supply the desired style rules as a string to `options.localStyle`, and Marklet will create and append a `<style>` tag in the `<head>` of the page. 
+
+```javascript
+options.localStyle = "div:{ max-height:1px; min-width:8000px; }";
+```
 
 ## Global Options
 
@@ -288,17 +294,25 @@ var options = {
 	timeout:10000   				/* timeout in ms */
 	localStyle:""   				/* Local CSS style rules to add */
 	localStyleId:"markletLocalCss"	/* ID for local style tag */
-	rejectIdConflict:true			/* If true, Marklet won't create a tag if the given ID is already present */
 	logging:false					/* Put true for verbose logging */
+	rejectIdConflict:true			/* If true, Marklet won't create a tag if the given ID is already present */
 	codeRunCondition:null			/* Condition to test before running main code */
-	onError:function(){}			/* callback */
+	onError:function(err){}			/* error event */
 };
 ```
+* _tickLength_ - if the __loadCondition__ on an include fails, Marklet will retry in one tick. Use this option to define a tick, in milliseconds. 
+* _timeout_ - the number of milliseconds until Marklet stops trying to test the loadCondition on an include and aborts (or tries the `catch` branch, or skips the include if it's not required)
+* _localStyle_ - pass Marklet local CSS text directly. (See "Local Style" above)
+* _localStyleId_ - use this if you want to set a specific ID for the `<style>` tag Marklet creates for the _localStyle_.
+* _logging_ - if __true__, Marklet will add verbose logs to the console as it works. Useful for debugging.
+* _rejectIdConflict_ - if __true__, Marklet will fail if the ID of the tag it's trying to create is already being used in the document (or try the `catch` branch or skip un-required includes)
+* _codeRunCondition_ - you can provide function that returns __true__ if it's safe to run the main bookmarklet code. See "Conditions" above.
+* _onError_ - you can provide a function that is triggered instead of the main code if Marklet aborts. (It is not guaranteed to have an argument, but if the function is running then you know there was a problem)
 
 
 ## Build
 
-To build your bookmarklet using Marklet, there are two options: copy/paste, or use the command-line tool.
+To build your bookmarklet using Marklet, there are two options: copy/paste, or use the command-line tool. If you are using a local NPM install of Marklet or downloading direct from Github, use the copy/paste method. If you are using a global NPM install, use the command line interface.
 
 ### Copy/Paste
 
