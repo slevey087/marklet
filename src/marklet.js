@@ -397,7 +397,7 @@
 			});
 			log("Deleted Marklet Elements.");
 			aborted = true;
-            backCall(options.onAbort, err);			
+            if (typeof options.onAbort === 'function') options.onAbort(err);
 			return Promise.reject(err);
         });      
     };
