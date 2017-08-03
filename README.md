@@ -154,7 +154,7 @@ options.scripts = {
 ;
 ```
 
-In the event that a branch fails, Marklet will be aborted, and error handlers will run instead of the main bookmarklet code. However, you can prevent this by setting `require` to __false__. In the example below, should two.js fail to load properly, three.js would not be loaded but Marklet would still execute the main bookmarklet code.
+In the event that a branch fails, Marklet will be aborted, and error handlers will run instead of the main bookmarklet code. However, you can prevent this by setting `required` to __false__. In the example below, should two.js fail to load properly, three.js would not be loaded but Marklet would still execute the main bookmarklet code.
 
 ```javascript
 options.scripts = {
@@ -224,6 +224,20 @@ options.codeRunCondition = function(){
 
 Marklet provides both global and include-level events.
 
+### onFetch
+
+This is triggered when the tag is added to the DOM and the browser starts to fetch the resource.
+
+```javascript
+options.stlyles = {
+	url:"//url/one.css",
+	id:"styleOne",
+	onFetch: function(){
+		/* Do something */
+	}
+};
+```
+
 ### onLoad
 
 This is triggered when an include loads succesfully. Note that it applies to a specific include, rather than the whole branch.
@@ -238,7 +252,7 @@ options.scripts = {
 };
 ```
 
-### onError (include)
+### onError
 
 This will be triggered if attempts to load a resource trigger an `error` event from the browser. 
 
@@ -247,6 +261,34 @@ options.scripts = {
 	url:"//url/one.js",
 	id:"scriptOne",
 	onError: function(err){
+		/* Do something */
+	}
+};
+```
+
+### onTimeout
+
+This will be triggered if the browser has not given either a `load` or `error` event by the timeout (as defined in `options.timeout`). 
+
+```javascript
+options.styles = {
+	url:"//url/one.css",
+	id:"styleOne",
+	onTimeout: function(err){
+		/* Do something */
+	}
+};
+```
+
+### onBackup
+
+This will be triggered if the primary URL fails, and Marklet is moving on to a backup URL. (This could come in handy if your backup is a different version of the same script).
+
+```javascript
+options.styles = {
+	url:"//url/one.css",
+	id:"styleOne",
+	onBackup: function(err){
 		/* Do something */
 	}
 };
@@ -266,12 +308,12 @@ options.scripts = {
 };
 ```
 
-### onError (global)
+### onAbort
 
 This is a global callback, that will only run if Marklet aborts. (It is roughly equivalent to `marklet().catch()`)
 
 ```javascript
-options.onError = function(err){
+options.onAbort = function(err){
 	/* Deal with whatever went horribly wrong */
 };
 ```
@@ -297,7 +339,7 @@ var options = {
 	logging:false					/* Put true for verbose logging */
 	rejectIdConflict:true			/* If true, Marklet won't create a tag if the given ID is already present */
 	codeRunCondition:null			/* Condition to test before running main code */
-	onError:function(err){}			/* error event */
+	onAbort:function(err){}			/* error event */
 };
 ```
 * _tickLength_ - if the __loadCondition__ on an include fails, Marklet will retry in one tick. Use this option to define a tick, in milliseconds. 
@@ -307,7 +349,7 @@ var options = {
 * _logging_ - if __true__, Marklet will add verbose logs to the console as it works. Useful for debugging.
 * _rejectIdConflict_ - if __true__, Marklet will fail if the ID of the tag it's trying to create is already being used in the document (or try the `catch` branch or skip un-required includes)
 * _codeRunCondition_ - you can provide function that returns __true__ if it's safe to run the main bookmarklet code. See "Conditions" above.
-* _onError_ - you can provide a function that is triggered instead of the main code if Marklet aborts. (It is not guaranteed to have an argument, but if the function is running then you know there was a problem)
+* _onAbort_ - you can provide a function that is triggered instead of the main code if Marklet aborts. (It is not guaranteed to have an argument, but if the function is running then you know there was a problem)
 
 
 ## Build

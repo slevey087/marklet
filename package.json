@@ -10,6 +10,16 @@
     "type": "git",
     "url": "git+https://github.com/slevey087/marklet.git"
   },
+  "bin": {
+    "marklet": "./bin/cli.js"
+  },
+  "scripts":{
+	"minify":"node ./dev/minify.js",
+	"build-callback":"node ./dev/build-callback.js",
+	"build-promise":"node ./dev/build-promise.js",
+	"build":"npm run minify && npm run build-callback && npm run build-promise",
+	"testBuild":"npm run build && marklet"
+  },
   "keywords": [
     "Bookmarklet",
     "Javascript",
@@ -25,5 +35,9 @@
   "bugs": {
     "url": "https://github.com/slevey087/marklet/issues"
   },
-  "homepage": "https://github.com/slevey087/marklet#readme"
+  "homepage": "https://github.com/slevey087/marklet#readme",
+  "dependencies": {
+    "commander": "^2.11.0",
+    "uglify-js": "^3.0.27"
+  }
 }
