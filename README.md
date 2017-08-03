@@ -43,6 +43,66 @@ The scripts and styles to be included are defined in the options as _include tre
 
 `deleter()` is a function supplied to your code by Marklet. When it is called, all tags added by Marklet will be deleted. This will return the page close to its previous state (though it will not remove any global variables added by the included scripts or your code). This is optional, but good practice.
 
+## Build
+
+To build your bookmarklet using Marklet, there are two options: copy/paste, or use the command-line tool. If you are using a local NPM install of Marklet or downloading direct from Github, use the copy/paste method. If you are using a global NPM install, use the command line interface.
+
+### Copy/Paste
+
+Open up either the file marklet_template_callback.js or marklet_template_promise.js, and replace your code as directed by the comments. As per above, your final bookmarklet should follow this format:
+
+```javascript
+javascript:(function(){
+	
+	var options = { /* Define marklet options here */ };
+	var codeToRun = function(deleter){
+	    /* Your main bookmarklet code here */
+	};
+	
+	marklet(options, codeToRun);
+	
+	/* The marklet source code goes here */
+})();
+	
+```
+or
+```javascript
+javascript:(function(){
+	var options = { /* Define marklet options here */ };
+	
+	marklet(options).then(function(deleter){
+		/* Your main bookmarklet code here */
+	}).catch(function(){
+		/* Error handling here */
+	});
+	
+	/* The marklet source code goes here */
+})();
+```
+
+### Command Line Tool
+
+Or, if you have NPM installed and Marklet installed globally, then you can use the command line interface. 
+
+First ensure that your code is compatible with the format above. Marklet will take care of the wrapping, but it is your job to set Marklet options and call the `marklet` function. Ex:
+
+```javascript
+var options = { /* Define marklet options here */ };
+var codeToRun = function(deleter){
+    /* Your main bookmarklet code here */
+};
+    
+marklet(options, codeToRun);
+```
+
+The CLI has the following format:
+
+```
+$ marklet <source file> [destination file]
+```
+
+`<source file>` must be the file name of the your code. `[destination file]` can be the desired output file name. `[destination file]` is optional, and if it is omitted, Marklet will create a file with the name `<source file>_marklet.js` in the same directory. The file created will be a minified file, which includes the `javascript:(function(){})();` bookmarklet wrapper.
+
 ## Include Trees
 
 Each include entry should include at minimum a URL and an ID. This ID will become the ID for the `<script>` or `<link>` tags.
@@ -352,62 +412,3 @@ var options = {
 * _onAbort_ - you can provide a function that is triggered instead of the main code if Marklet aborts. (It is not guaranteed to have an argument, but if the function is running then you know there was a problem)
 
 
-## Build
-
-To build your bookmarklet using Marklet, there are two options: copy/paste, or use the command-line tool. If you are using a local NPM install of Marklet or downloading direct from Github, use the copy/paste method. If you are using a global NPM install, use the command line interface.
-
-### Copy/Paste
-
-Open up either the file marklet_template_callback.js or marklet_template_promise.js, and replace your code as directed by the comments. As per above, your final bookmarklet should follow this format:
-
-```javascript
-javascript:(function(){
-	
-	var options = { /* Define marklet options here */ };
-	var codeToRun = function(deleter){
-	    /* Your main bookmarklet code here */
-	};
-	
-	marklet(options, codeToRun);
-	
-	/* The marklet source code goes here */
-})();
-	
-```
-or
-```javascript
-javascript:(function(){
-	var options = { /* Define marklet options here */ };
-	
-	marklet(options).then(function(deleter){
-		/* Your main bookmarklet code here */
-	}).catch(function(){
-		/* Error handling here */
-	});
-	
-	/* The marklet source code goes here */
-})();
-```
-
-### Command Line Tool
-
-Or, if you have NPM installed and Marklet installed globally, then you can use the command line interface. 
-
-First ensure that your code is compatible with the format above. Marklet will take care of the wrapping, but it is your job to set Marklet options and call the `marklet` function. Ex:
-
-```javascript
-var options = { /* Define marklet options here */ };
-var codeToRun = function(deleter){
-    /* Your main bookmarklet code here */
-};
-    
-marklet(options, codeToRun);
-```
-
-The CLI has the following format:
-
-```
-$ marklet <source file> [destination file]
-```
-
-`<source file>` must be the file name of the your code. `[destination file]` can be the desired output file name. `[destination file]` is optional, and if it is omitted, Marklet will create a file with the name `<source file>_marklet.js` in the same directory. The file created will be a minified file, which includes the `javascript:(function(){})();` bookmarklet wrapper.
