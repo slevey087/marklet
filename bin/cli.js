@@ -6,7 +6,7 @@ var fs = require('fs')
 var program = require('commander');
 var UglifyJS = require("uglify-js");
 
-var markletPath =  __dirname + "/../src/marklet.js";
+var markletPath =  __dirname + "/../dist/marklet.min.js";
 var inputFile;
 var outputFile;
 
@@ -14,6 +14,8 @@ program
 	.version('0.0.1')
 	.arguments('<inputFileName> [outputFileName]')
 	.option('-b, --bigly', "Don't minify code.")
+	.option('-h, --href','Encode \"s so bookmarklet can be used in <a> tags.')
+	.option('-t, --tab','Escape \"s and add javascript:window.open() to start bookmarklet in new tab.')
 	.action(function (inputFileName, outputFileName) {
 		inputFile = inputFileName;
 		outputFile = outputFileName || (function(){
@@ -74,8 +76,20 @@ fs.readFile(inputFile, (err,data)=>{
 					process.exit(1);
 				}
 				else {
-					var finalCode = "javascript:" + result.code;
+					
+					var finalCode = "javascript:" + result.code;					
 					program.bigly ? null : console.log("Code minified.");
+					
+					if (program.href) {
+						var finalCode = finalCode.replace(/"/g,"&quot;");
+						console.log("Code encoded.");
+					}
+					else if (program.tab) {
+						var finalCode = finalCode.replace(/"/g,'\\"');
+						finalCode = 'javascript:window.open("' + finalCode + '");';
+						console.log("Code escaped.");
+					}
+					
 					console.log("Output file: " + outputFile);
 					console.log("Writing file...");
 					

@@ -1,6 +1,6 @@
-var options= {};
-    options.scripts = 
-        [{
+var options= {
+	scripts:[
+		{
             url:"//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js",
 			backupUrl:"https://code.jquery.com/jquery-3.2.1.min.js",
             id:"jquery",
@@ -32,10 +32,9 @@ var options= {};
 					}
 				}
 			}
-		}];
-    
-    /* an array of styles to add */
-    options.styles = [
+		}
+	],		
+    styles: [
 		{
             url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.css",
             id:"alert-style",
@@ -50,29 +49,30 @@ var options= {};
 			onTimeout:function(){console.log("bootstrap on timeout handler!");},
 			onFail:function(){console.log("bootstrap on fail handler!");}
 		}
-	];
+	],
+	localStyle:"div:min-height:100px;",
+    codeRunCondition: function(){if (typeof $.alert !== 'undefined') return true},
+    logging: true,
+    rejectIdConflict: false
+};
 	
-	options.localStyle = "div:min-height:100px;";
-    
-    /* condition to verify before running main code */
-    options.codeRunCondition = function(){if (typeof $.alert !== 'undefined') return true};
-    
-    /* the main code to run once the tags are added */
-    var codeToRun = function()  {
-        console.log("I made it!");
-    };
-    options.logging = true;
-    options.rejectIdConflict = false;
+/* the main code to run once the tags are added */
+var codeToRun = function()  {
+	console.log("I made it!");
+};
+	  
 	
-    marklet(options, codeToRun)
+marklet(options, codeToRun)
 	.then(function(deleterFunction){
+		
 		console.log("everything is dandy ");  
+		
 		setTimeout(function(){
 			deleterFunction()
 			.then(function(){
-				console.log("Finished deleter");
+				console.log("Ran deleter function.");
 			}); 
-		},25000);
-		setTimeout(function(){console.clear();}, 30000)
+		},30000);
+		
 	})
-	.catch(function(){console.log("second error handler");});
+	.catch(function(){alert("Oh no, Marklet aborted!");});

@@ -39,6 +39,8 @@ javascript:(function(){
 })();
 ```
 
+(Note that if you use both a callback and a promise, the callback will execute first.) 
+
 The scripts and styles to be included are defined in the options as _include trees_, explained below.
 
 `deleter()` is a function supplied to your code by Marklet. When it is called, all tags added by Marklet will be deleted. This will return the page close to its previous state (though it will not remove any global variables added by the included scripts or your code). This is optional, but good practice.
@@ -49,36 +51,8 @@ To build your bookmarklet using Marklet, there are two options: copy/paste, or u
 
 ### Copy/Paste
 
-Open up either the file marklet_template_callback.js or marklet_template_promise.js, and replace your code as directed by the comments. As per above, your final bookmarklet should follow this format:
+Open up either the file marklet_template_callback.js or marklet_template_promise.js, and replace your code as directed by the comments. Your final bookmarklet should follow one of the two formats above.
 
-```javascript
-javascript:(function(){
-	
-	var options = { /* Define marklet options here */ };
-	var codeToRun = function(deleter){
-	    /* Your main bookmarklet code here */
-	};
-	
-	marklet(options, codeToRun);
-	
-	/* The marklet source code goes here */
-})();
-	
-```
-or
-```javascript
-javascript:(function(){
-	var options = { /* Define marklet options here */ };
-	
-	marklet(options).then(function(deleter){
-		/* Your main bookmarklet code here */
-	}).catch(function(){
-		/* Error handling here */
-	});
-	
-	/* The marklet source code goes here */
-})();
-```
 
 ### Command Line Tool
 
@@ -411,4 +385,97 @@ var options = {
 * _codeRunCondition_ - you can provide function that returns __true__ if it's safe to run the main bookmarklet code. See "Conditions" above.
 * _onAbort_ - you can provide a function that is triggered instead of the main code if Marklet aborts. (It is not guaranteed to have an argument, but if the function is running then you know there was a problem)
 
+## Example
 
+Here is the test example (_test.js_ in the `example` folder). This is the code as it appears before using the command line tool. (Notice it uses both callback and promises). 
+
+```javascript
+var options= {
+	scripts:[
+		{
+            url:"//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js",
+			backupUrl:"https://code.jquery.com/jquery-3.2.1.min.js",
+            id:"jquery",
+			onFetch:function(){console.log("jquery on Fetch handler!");},
+			onLoad:function(){console.log("jquery on load handler!");},
+			onError:function(){console.log("jquery on error handler!");},
+			onTimeout:function(){console.log("jquery on timeout handler!");},
+			onFail:function(){console.log("jquery on fail handler!");},
+			then:[
+				{
+					url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.js",
+					id:"jquery-alert",
+					loadCondition:function(){if (typeof $ !== 'undefined') return true;}
+				},
+				{
+					url:"//cdnjs.cloudflare.com/ajax/libs/Sortable/1.6.0/Sortable.min.js",
+					id:"sortable"					
+				}				
+			],
+			catch: {
+				url:"https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js",
+				id:"angular",				
+				then:{
+					url:"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.6.0/Chart.js",
+					id:"chartJS",
+					then:{
+						url:"https://cdnjs.cloudflare.com/ajax/libs/angular-chart.js/1.1.1/angular-chart.js",
+						id:"angularChart"
+					}
+				}
+			}
+		}
+	],		
+    styles: [
+		{
+            url:"//cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.2.3/jquery-confirm.min.css",
+            id:"alert-style",
+			required:false,
+		},	
+		{	
+			url:"//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+			id:"bootstrap",
+			onFetch:function(){console.log("bootstrap on Fetch handler!");},
+			onLoad:function(){console.log("bootstrap on load handler!");},
+			onError:function(){console.log("bootstrap on error handler!");},
+			onTimeout:function(){console.log("bootstrap on timeout handler!");},
+			onFail:function(){console.log("bootstrap on fail handler!");}
+		}
+	],
+	localStyle:"div:min-height:100px;",
+    codeRunCondition: function(){if (typeof $.alert !== 'undefined') return true},
+    logging: true,
+    rejectIdConflict: false
+};
+	
+/* the main code to run once the tags are added */
+var codeToRun = function()  {
+	console.log("I made it!");
+};
+	  
+	
+marklet(options, codeToRun)
+	.then(function(deleterFunction){
+		
+		console.log("everything is dandy ");  
+		
+		setTimeout(function(){
+			deleterFunction()
+			.then(function(){
+				console.log("Ran deleter function.");
+			}); 
+		},30000);
+		
+	})
+	.catch(function(){alert("Oh no, Marklet aborted!");});
+```
+
+Then you could use the command line tool as follows:
+```
+$ marklet example/test.js 
+```
+And it will create the minified, marklet-ified _example/test_marklet.js_. Then open that file, copy and paste its contents into your URL bar.
+
+## To-Do
+
+* Add some flags to the CLI, to specify un-minified, or escaped code
