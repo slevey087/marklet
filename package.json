@@ -1,10 +1,14 @@
 {
   "name": "marklet",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Framework for loading dependent external scripts into bookmarklets.",
   "main": "marklet.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "minify": "node ./dev/minify.js",
+    "build-callback": "node ./dev/build-callback.js",
+    "build-promise": "node ./dev/build-promise.js",
+    "build": "npm run minify && npm run build-callback && npm run build-promise",
+    "testBuild": "npm run build && marklet"
   },
   "repository": {
     "type": "git",
@@ -12,13 +16,6 @@
   },
   "bin": {
     "marklet": "./bin/cli.js"
-  },
-  "scripts":{
-	"minify":"node ./dev/minify.js",
-	"build-callback":"node ./dev/build-callback.js",
-	"build-promise":"node ./dev/build-promise.js",
-	"build":"npm run minify && npm run build-callback && npm run build-promise",
-	"testBuild":"npm run build && marklet"
   },
   "keywords": [
     "Bookmarklet",
