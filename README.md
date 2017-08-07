@@ -4,7 +4,15 @@ Helper framework for bookmarklets that load external scripts and/or stylesheets.
 
 ## Installation
 
-On NPM soon. 
+If you don't have NPM, you can open marklet_template_callback.js or marklet_template_promise.js using Github. Or you can use NPM to do a local install and open those files, with:
+```
+npm install marklet
+```
+
+If you'd like to use the command line tool to build your scripts for you, do a global install:
+```
+npm install marklet -g
+```
 
 ## Usage
 
